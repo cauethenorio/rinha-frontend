@@ -4,10 +4,56 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JSON Viewer</title>
+    <link rel="stylesheet" href="/src/index.css" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
   </head>
   <body>
-    <div id="app">
+    <div id="app" class="absolute top-0 end-0 bottom-0 start-0">
+      <div
+        id="start-page__page"
+        class="absolute top-0 end-0 bottom-0 start-0 flex backdrop-blur-md"
+      >
+        <div
+          class="container max-w-5xl mx-auto basis-full grow flex flex-col justify-center text-center"
+        >
+          <h1 class="text-5xl font-bold">JSON Tree Viewer</h1>
+          <p class="text-2xl mt-6">
+            Simple JSON Viewer that runs completely on-client. No data exchange
+          </p>
+          <p class="mt-6">
+            <button
+              id="start-page__json-input-button"
+              class="font-medium py-1.5 px-3 rounded-[5px] border border-black bg-gradient-to-b from-[#e4e4e4] to-[#f7f7f7] focus:outline-none ring-offset-2 focus:ring ring-green-300 opacity-70"
+              tabindex="0"
+            >
+              Load JSON
+            </button>
+            <input
+              type="file"
+              class="hidden"
+              id="start-page__json-input"
+              accept="application/json"
+              tabindex="0"
+            />
+          </p>
+          <div
+            class="grid grid-rows-[0fr] text-[#BF0E0E] transition-all duration-200"
+          >
+            <div
+              id="start-page__error-placeholder"
+              class="mt-6 overflow-hidden"
+            ></div>
+          </div>
+        </div>
+      </div>
 
+      <div id="tree-page__page" class="container max-w-5xl mx-auto relative">
+        <h1 id="tree-page__filename"></h1>
+        <div
+          id="tree-page__tree-container"
+          class="relative text-base leading-7"
+        ></div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -9,7 +9,16 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "prettier": "^3.0.3",
+    "sass": "^1.69.3",
+    "tailwindcss": "^3.3.3",
     "typescript": "^5.0.2",
     "vite": "^4.4.5"
+  },
+  "dependencies": {
+    "@xtao-org/jsonhilo": "^0.3.3",
+    "remote-web-streams": "^0.2.0"
   }
 }

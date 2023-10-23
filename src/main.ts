@@ -1,24 +1,27 @@
-import './style.css'
-import typescriptLogo from './typescript.svg'
-import viteLogo from '/vite.svg'
-import { setupCounter } from './counter.ts'
+import { StartPage } from './start-page';
+import { JsonTreePage } from './json-tree-page';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`
+function runApp() {
+  const startPage = new StartPage();
+  const treePage = new JsonTreePage();
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+  startPage.onSelectFile(file => {
+    if (!file) {
+      startPage.setError('');
+      return;
+    }
+
+    return treePage
+      .loadJsonFile(file, {
+        onValidFile: startPage.hidePage,
+      })
+      .catch(err => {
+        if ('type' in err && err.type === 'invalid-file') {
+          return startPage.setError(err.message);
+        }
+        throw err;
+      });
+  });
+}
+
+runApp();
