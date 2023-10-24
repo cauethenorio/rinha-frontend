@@ -56,8 +56,14 @@ export function buildLine(line: JSONLine): HTMLElement {
   function buildErrorLine(line: JSONLine & { type: JSONLineType.Error }) {
     return renderLineContainerTag(line, el => {
       const msg = document.createElement('span');
-      msg.classList.add('text-red-800');
-      msg.innerText = line.message;
+      msg.classList.add(
+        'text-red-800',
+        'border-red-800',
+        'border',
+        'p-2',
+        'rounded',
+      );
+      msg.textContent = `⚠️ ${line.message}`;
       el.appendChild(msg);
     });
   }
