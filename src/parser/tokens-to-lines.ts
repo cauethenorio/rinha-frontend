@@ -36,7 +36,7 @@ export class JsonTokens2Lines {
 
   private reader;
 
-  private currentLevel = 0;
+  private currentLevel = -1;
   private path: Array<JSONLineType.OpenArray | JSONLineType.OpenObject> = [];
   private arraysIndexes: Array<number> = [];
   private currentKey: string | null = null;
@@ -105,12 +105,16 @@ export class JsonTokens2Lines {
   private _handleOpen(type: JSONLineType.OpenArray | JSONLineType.OpenObject) {
     const key = this.calculateCurrentKey();
 
-    this.linesBuffer!.push({
-      type,
-      level: this.currentLevel,
-      key,
-      container: this.currentContainer,
-    });
+    if (key || this.currentContainer === JSONLineType.OpenArray) {
+      // rinha-specific: hide { when there's no key
+      this.linesBuffer!.push({
+        type,
+        level: this.currentLevel,
+        key,
+        container: this.currentContainer,
+      });
+    }
+
     this.currentLevel++;
 
     this.path.push(type);
@@ -134,13 +138,13 @@ export class JsonTokens2Lines {
       this.arraysIndexes.pop();
     }
 
-    this.linesBuffer!.push({
-      type:
-        this.currentContainer === JSONLineType.OpenArray
-          ? JSONLineType.CloseArray
-          : JSONLineType.CloseObject,
-      level: this.currentLevel,
-    });
+    // rinha-specific: hide }
+    if (this.currentContainer === JSONLineType.OpenArray) {
+      this.linesBuffer!.push({
+        type: JSONLineType.CloseArray,
+        level: this.currentLevel,
+      });
+    }
   }
 
   handleKey(key: string) {
@@ -149,6 +153,10 @@ export class JsonTokens2Lines {
 
   handleValue(value: JSONPrimitive) {
     const key = this.calculateCurrentKey();
+
+    if (typeof value === 'string') {
+      value = `"${value}"`;
+    }
 
     this.linesBuffer!.push({
       type: JSONLineType.Property,

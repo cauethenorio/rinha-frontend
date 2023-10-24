@@ -1,5 +1,6 @@
 import { buildLine } from './build-json-line.ts';
 import { getWorkerJsonParserTransformStream } from './get-worker.ts';
+import { JsonStreamChunk, ParserErrorType } from './types.ts';
 import { VirtualList } from './virtual-list';
 import { LoadBar } from './load-bar.ts';
 
@@ -24,7 +25,7 @@ export class JsonTreePage {
     //const lineRenderer = new JsonLineBuilder(this.treeContainerEl);
 
     const self = this;
-    let isValidJsonFile = false;
+    let readChunks = 0;
 
     const virtualList = new VirtualList(this.treeContainerEl, buildLine);
     const loadBar = new LoadBar(this.pageEl);
@@ -34,15 +35,24 @@ export class JsonTreePage {
     return await file
       .stream()
       .pipeThrough(getWorkerJsonParserTransformStream())
+      .pipeThrough(
+        validateFileType({
+          onValidFile: () => {
+            self.fileNameEl.textContent = fileName;
+            onValidFile();
+          },
+          onInvalidFile: error => {
+            this.reset();
+            throw error;
+          },
+        }),
+      )
       .pipeTo(
         new WritableStream({
-          write({ lines, processedBytes, error }) {
-            if (error?.type === 'invalid-file') {
-              self.reset();
-              return Promise.reject(error);
-            }
-
+          write({ lines, processedBytes }) {
             return new Promise(resolve => {
+              readChunks++;
+
               console.log(
                 'read ',
                 processedBytes,
@@ -60,14 +70,10 @@ export class JsonTreePage {
 
               virtualList.setCallbackToLoadMoreLines(resolve);
 
-              //lineRenderer.render(lines);
-
-              if (lines.length > 1 && !isValidJsonFile) {
-                // it there were valid JSON tokens to be parsed, we assume
-                // the file is a valid JSON file
-                isValidJsonFile = true;
-                self.fileNameEl.textContent = fileName;
-                onValidFile();
+              if (readChunks === 1) {
+                // always load two chunks to ensure unexpected end of file
+                // error are captured as they are sent in the second chunk
+                resolve();
               }
             });
           },
@@ -111,4 +117,31 @@ export class JsonTreePage {
     }
     return el;
   }
+}
+
+function validateFileType({
+  onValidFile,
+  onInvalidFile,
+}: {
+  onValidFile: () => unknown;
+  onInvalidFile: (error: ParserErrorType) => unknown;
+}) {
+  let isValidJsonFile = false;
+
+  return new TransformStream<JsonStreamChunk, JsonStreamChunk>({
+    transform(chunk, controller) {
+      if (chunk.error && chunk.error.type === 'invalid-file') {
+        onInvalidFile(chunk.error);
+        controller.terminate();
+      }
+      if (!isValidJsonFile && chunk.lines.length > 1) {
+        // it there were valid JSON tokens to be parsed, we assume
+        // the file is a valid JSON file
+        isValidJsonFile = true;
+        onValidFile();
+      }
+
+      controller.enqueue(chunk);
+    },
+  });
 }

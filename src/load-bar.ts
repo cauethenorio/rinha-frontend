@@ -16,12 +16,12 @@ export class LoadBar {
     this.el.classList.add(
       'opacity-50',
       'fixed',
-      'w-2',
+      'w-1',
       'top-2.5',
       'right-2.5',
       'bottom-2.5',
       'border-[1px]',
-      'border-slate-700',
+      'border-slate-500',
       'rounded',
     );
     this.root.appendChild(this.el);

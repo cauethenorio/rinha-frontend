@@ -1,6 +1,6 @@
 import { JSONLine, JSONLineType, JSONPrimitive } from './types';
 
-export function buildLine(line: JSONLine): HTMLDivElement {
+export function buildLine(line: JSONLine): HTMLElement {
   switch (line.type) {
     case JSONLineType.OpenArray:
     case JSONLineType.OpenObject: {
@@ -30,7 +30,9 @@ export function buildLine(line: JSONLine): HTMLDivElement {
       if (line.key != null && line.key !== '') {
         el.appendChild(getKeyTag(line.key));
       }
-      el.appendChild(getDelimiterTagForType(line.type));
+      if (line.type === JSONLineType.OpenArray) {
+        el.appendChild(getDelimiterTagForType(line.type));
+      }
     });
   }
 
@@ -72,7 +74,7 @@ export function buildLine(line: JSONLine): HTMLDivElement {
 
   function getValueTag(value: JSONPrimitive) {
     const el = document.createElement('span');
-    el.classList.add('font-normal');
+    el.classList.add('font-normal', 'break-words');
     el.innerText = value?.toString() ?? 'null';
     return el;
   }
@@ -101,26 +103,42 @@ export function buildLine(line: JSONLine): HTMLDivElement {
     line: JSONLine,
     callback: (el: HTMLDivElement) => unknown,
   ) {
-    const el = document.createElement('div');
-    el.classList.add('absolute');
+    const el = document.createElement('li');
+    el.classList.add(
+      'absolute',
+      'rounded',
+      'hover:bg-sky-50',
+      'w-full',
+      'focus:outline-none',
+      'focus:ring-offset-2',
+      'focus:ring',
+      'focus:ring-sky-400',
+    );
+    el.setAttribute('aria-level', (line.level + 1).toString());
+    el.setAttribute('role', 'treeitem');
+    el.setAttribute('tabindex', '0');
 
     for (let i = 0; i < line.level; i++) {
-      const vLineEl = document.createElement('div');
-      vLineEl.classList.add(
+      const verticalLineEl = document.createElement('div');
+      verticalLineEl.classList.add(
         'absolute',
         'border-l',
         'border-indenting',
         'h-full',
       );
-      vLineEl.style.left = `${i * 20 + 1.5}px`;
-      el.appendChild(vLineEl);
+      verticalLineEl.style.left = `${i * 20 + 1.5}px`;
+      el.appendChild(verticalLineEl);
     }
 
     if (line.level) {
       el.style.paddingLeft = `${line.level * 20}px`;
     }
 
-    callback(el);
+    const innerEl = document.createElement('div');
+    innerEl.classList.add('flex', 'gap-1');
+    el.appendChild(innerEl);
+
+    callback(innerEl);
 
     return el;
   }

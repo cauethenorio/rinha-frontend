@@ -23,7 +23,7 @@
           <p class="mt-6">
             <button
               id="start-page__json-input-button"
-              class="font-medium py-1.5 px-3 rounded-[5px] border border-black bg-gradient-to-b from-[#e4e4e4] to-[#f7f7f7] focus:outline-none ring-offset-2 focus:ring ring-green-300 opacity-70"
+              class="font-medium py-1.5 px-3 rounded-[5px] border border-black bg-gradient-to-b from-[#e4e4e4] to-[#f7f7f7] focus:outline-none ring-offset-2 focus:ring ring-sky-400 opacity-70"
               tabindex="0"
             >
               Load JSON
@@ -47,12 +47,16 @@
         </div>
       </div>
 
-      <div id="tree-page__page" class="container max-w-5xl mx-auto relative">
-        <h1 id="tree-page__filename"></h1>
-        <div
+      <div
+        id="tree-page__page"
+        class="container max-w-5xl mx-auto relative py-6"
+      >
+        <h1 id="tree-page__filename" class="text-[32px] font-bold"></h1>
+        <ul
           id="tree-page__tree-container"
-          class="relative text-base leading-7"
-        ></div>
+          class="relative text-base leading-7 pt-[10px]"
+          role="group"
+        ></ul>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
