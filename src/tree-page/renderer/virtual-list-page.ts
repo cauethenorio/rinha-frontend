@@ -1,4 +1,5 @@
 import { JSONLine } from 'src/types';
+import { renderLine } from './render-line';
 
 export class VirtualListPage {
   public el?: HTMLElement;
@@ -8,7 +9,6 @@ export class VirtualListPage {
   constructor(
     public pageIndex: number,
     public lines: Array<JSONLine>,
-    private readonly buildLine: (line: JSONLine) => HTMLElement,
   ) {}
 
   public mount() {
@@ -46,7 +46,7 @@ export class VirtualListPage {
     console.log('rendering all lines of page', this.pageIndex);
     for (let i = this.renderedLines.length; i < this.lines.length; i++) {
       const line = this.lines[i];
-      const lineEl = this.buildLine(line);
+      const lineEl = renderLine(line);
       this.renderedLines.push(lineEl);
       this.el!.appendChild(lineEl);
     }
@@ -73,7 +73,7 @@ export class VirtualListPage {
 
       const line = this.lines[i];
 
-      const lineEl = this.buildLine(line);
+      const lineEl = renderLine(line);
       this.renderedLines.push(lineEl);
       this.el!.appendChild(lineEl);
 

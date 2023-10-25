@@ -1,13 +1,15 @@
 export class StartPage {
   prefix = 'start-page__';
 
-  page = this.getById<HTMLDivElement>('page');
-  button = this.getById<HTMLButtonElement>('json-input-button');
-  jsonInput = this.getById('json-input');
-  errorPlaceholder = this.getById<HTMLDivElement>('error-placeholder');
+  els = {
+    page: this.getById('page'),
+    button: this.getById('json-input-button'),
+    fileInput: this.getById('json-input'),
+    errorPlaceholder: this.getById('error-placeholder'),
+  };
 
   constructor() {
-    this.#enableButtonBindings();
+    this.enableButtonBindings();
   }
 
   getById<E extends HTMLElement>(id: string): E {
@@ -19,25 +21,32 @@ export class StartPage {
     return el;
   }
 
-  #enableButtonBindings() {
-    this.button.addEventListener('click', () => {
-      this.jsonInput.click();
+  private enableButtonBindings() {
+    this.els.button.addEventListener('click', () => {
+      this.els.fileInput.click();
     });
   }
 
-  onSelectFile(callback: (file: File | undefined) => unknown) {
-    this.jsonInput.addEventListener('change', event => {
+  onSelectFile(loadFile: (file: File | undefined) => Promise<unknown>) {
+    this.els.fileInput.addEventListener('change', event => {
       // clear error msg
       this.setError('');
 
       const jsonFile = (event.currentTarget! as HTMLInputElement).files![0];
-      callback(jsonFile);
+
+      loadFile(jsonFile).then(this.hide, error => {
+        if ('type' in error && error.type === 'invalid-file') {
+          return this.setError(error.message);
+        }
+        // a bug
+        throw error;
+      });
     });
   }
 
   setError = (message: string) => {
-    this.errorPlaceholder.textContent = message ?? '';
-    const parent = this.errorPlaceholder.parentElement!;
+    this.els.errorPlaceholder.textContent = message ?? '';
+    const parent = this.els.errorPlaceholder.parentElement!;
     const classes = { show: 'grid-rows-[1fr]', hide: 'grid-rows-[0fr]' };
 
     if (!message) {
@@ -49,19 +58,10 @@ export class StartPage {
     }
   };
 
-  hidePage = () => {
-    this.page.classList.add('hidden');
+  hide = () => {
+    requestAnimationFrame(() => {
+      this.els.page.classList.add('-translate-x-10');
+      this.els.page.classList.replace('opacity-100', 'opacity-0');
+    });
   };
 }
-
-// export function enableStartPage() {
-//   console.log('start-page.ts');
-//
-//   const jsonInput = document.getElementById('start-page__json-input');
-//   jsonInput.addEventListener('change', (event) => {
-//     const jsonFile = event.currentTarget.files[0];
-//
-//
-//
-//   });
-// }

@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JSON Viewer</title>
     <link rel="stylesheet" href="/src/index.css" />
-    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <!--    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />-->
   </head>
   <body>
     <div id="app" class="absolute top-0 end-0 bottom-0 start-0">
       <div
         id="start-page__page"
-        class="absolute top-0 end-0 bottom-0 start-0 flex backdrop-blur-md"
+        class="absolute top-0 end-0 bottom-0 start-0 flex backdrop-blur-md transition duration-500 opacity-100"
       >
         <div
           class="container max-w-5xl mx-auto basis-full grow flex flex-col justify-center text-center"
@@ -46,10 +46,9 @@
           </div>
         </div>
       </div>
-
       <div
         id="tree-page__page"
-        class="container max-w-5xl mx-auto relative py-6 px-3"
+        class="container max-w-5xl mx-auto relative py-6 px-3 translate-x-10 opacity-0 transition duration-500"
       >
         <h1 id="tree-page__filename" class="text-[32px] font-bold"></h1>
         <ul

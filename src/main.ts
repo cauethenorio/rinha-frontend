@@ -1,26 +1,17 @@
 import { StartPage } from './start-page';
-import { JsonTreePage } from './json-tree-page';
+import { TreePage } from './tree-page/tree-page';
 
 function runApp() {
   const startPage = new StartPage();
-  const treePage = new JsonTreePage();
+  const treePage = new TreePage();
 
   startPage.onSelectFile(file => {
     if (!file) {
       startPage.setError('');
-      return;
+      return Promise.resolve();
     }
 
-    return treePage
-      .loadJsonFile(file, {
-        onValidFile: startPage.hidePage,
-      })
-      .catch(err => {
-        if ('type' in err && err.type === 'invalid-file') {
-          return startPage.setError(err.message);
-        }
-        throw err;
-      });
+    return treePage.loadJsonFile(file);
   });
 }
 
