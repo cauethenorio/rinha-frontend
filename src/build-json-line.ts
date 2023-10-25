@@ -80,7 +80,7 @@ export function buildLine(line: JSONLine): HTMLElement {
 
   function getValueTag(value: JSONPrimitive) {
     const el = document.createElement('span');
-    el.classList.add('font-normal', 'break-words');
+    el.className = 'font-normal break-words overflow-hidden';
     el.innerText = value?.toString() ?? 'null';
     return el;
   }

@@ -4,109 +4,13 @@ import { JSONLine, JsonStreamChunk, ParserErrorType } from './types.ts';
 
 import { LoadBar } from './load-bar.ts';
 import { VirtualListLimitObserver } from './tree-page/renderer/virtual-list-limit-observer';
-
-class PaginatedListPage {
-  pageEl: HTMLElement;
-  renderedLines: Array<HTMLElement> = [];
-
-  constructor(
-    public pageIndex: number,
-    insertPageNode: (pageEl: HTMLElement, index: number) => unknown,
-    public lines: Array<JSONLine>,
-    private readonly buildLine: (line: JSONLine) => HTMLElement,
-    asyncRendering: boolean,
-  ) {
-    this.pageEl = document.createElement('div');
-    this.pageEl.classList.add('page', 'page' + pageIndex);
-    this.pageEl.style.borderBottom = '1px solid black';
-
-    insertPageNode(this.pageEl, this.pageIndex);
-
-    if (asyncRendering) {
-      this.asyncRenderVisibleLines();
-    } else {
-      this.renderAllLines();
-    }
-    this.addScrollObserver();
-
-    // lines.forEach(line => {
-    //   this.pageEl.appendChild(this.buildLine(line));
-    // });
-
-    //this.addEndObserver();
-  }
-
-  addScrollObserver() {
-    window.addEventListener('scroll', this.asyncRenderVisibleLines, {
-      passive: true,
-    });
-  }
-
-  public hasPendingLines() {
-    return this.lines.length > this.renderedLines.length;
-  }
-
-  setAsFinalPage() {
-    debugger;
-  }
-
-  asyncRenderVisibleLines = () => {
-    requestAnimationFrame(this.renderVisibleLines);
-  };
-
-  renderAllLines() {
-    console.log('rendering all lines of page', this.pageIndex);
-    for (let i = this.renderedLines.length; i < this.lines.length; i++) {
-      const line = this.lines[i];
-      const lineEl = this.buildLine(line);
-      this.renderedLines.push(lineEl);
-      this.pageEl.appendChild(lineEl);
-    }
-  }
-
-  renderVisibleLines = () => {
-    if (this.renderedLines.length >= this.lines.length) {
-      // nothing left to be done after all page lines are rendered
-      return;
-    }
-
-    const pageRect = this.pageEl.getBoundingClientRect();
-    const heightToBeFilled =
-      window.innerHeight -
-      (this.renderedLines.at(-1)?.getBoundingClientRect().top ?? pageRect.top) +
-      240;
-
-    //console.log('page', this.pageIndex, { heightToBeFilled });
-
-    let filled = 0;
-
-    for (let i = this.renderedLines.length; i < this.lines.length; i++) {
-      if (filled >= heightToBeFilled) {
-        break;
-      }
-
-      const line = this.lines[i];
-
-      const lineEl = this.buildLine(line);
-      this.renderedLines.push(lineEl);
-      this.pageEl.appendChild(lineEl);
-      //console.log('rendered line', (i + 1) * this.pageIndex);
-
-      filled += lineEl.getBoundingClientRect().height;
-    }
-  };
-
-  unload() {
-    window.removeEventListener('scroll', this.asyncRenderVisibleLines);
-    this.pageEl.remove();
-  }
-}
+import { VirtualListPage } from './tree-page/renderer/virtual-list-page';
 
 class PaginatedList {
   itemsPerPage = 100;
   lines: Array<JSONLine> = [];
   lastPageIndex: number = Infinity;
-  pages: Array<PaginatedListPage> = [];
+  pages: Array<VirtualListPage> = [];
   loadMore: null | (() => unknown) = null;
 
   startObserver: VirtualListLimitObserver;
@@ -139,11 +43,11 @@ class PaginatedList {
 
     if (prevPageIndex >= 0) {
       const currentScroll = window.scrollY;
-      const page = this.loadPage(prevPageIndex, false, false);
+      const page = this.loadPage(prevPageIndex, false, 'start');
 
       window.scrollTo({
         behavior: 'instant',
-        top: currentScroll + page.pageEl.getBoundingClientRect().height,
+        top: currentScroll + page.el!.getBoundingClientRect().height,
       });
 
       if (prevPageIndex === 0) {
@@ -160,7 +64,7 @@ class PaginatedList {
     const nextPageIndex = this.pages.at(-1)!.pageIndex + 1;
 
     if (nextPageIndex <= this.lastPageIndex) {
-      this.loadPage(nextPageIndex, nextPageIndex === this.lastPageIndex);
+      this.loadPage(nextPageIndex, nextPageIndex === this.lastPageIndex, 'end');
     } else {
       this.endObserver.unmount();
     }
@@ -169,12 +73,12 @@ class PaginatedList {
   unloadPageAt(index: number) {
     const page = this.pages.at(index);
     console.log('unloaded page', page?.pageIndex);
-    page?.unload();
+    page?.unmount();
     this.pages.splice(index, 1);
   }
 
-  insertPageNode = (pageEl: HTMLElement, index: number) => {
-    if (index < this.pages[0]?.pageIndex ?? -1) {
+  insertPageNode = (pageEl: HTMLElement, listPosition: 'start' | 'end') => {
+    if (listPosition === 'start') {
       // we are adding a page at the start of the list
       this.startObserver.el?.insertAdjacentElement('afterend', pageEl);
     } else {
@@ -189,7 +93,7 @@ class PaginatedList {
   loadPage = (
     pageIndex: number,
     isLastPage: boolean,
-    asyncRendering: boolean = true,
+    listPosition: 'start' | 'end',
   ) => {
     console.log('loading page', pageIndex);
 
@@ -198,13 +102,19 @@ class PaginatedList {
       this.loadMore?.();
     }
 
-    const page = new PaginatedListPage(
+    const page = new VirtualListPage(
       pageIndex,
-      this.insertPageNode,
       this.getLinesForPage(pageIndex),
       this.buildLine,
-      asyncRendering,
     );
+
+    this.insertPageNode(page.mount(), listPosition);
+
+    if (listPosition === 'start') {
+      page.renderAllLines();
+    } else {
+      page.asyncRenderVisibleLines();
+    }
 
     this.pages.push(page);
     this.pages.sort((a, b) => a.pageIndex - b.pageIndex);
@@ -247,7 +157,7 @@ class PaginatedList {
     }
 
     if (this.pages.length === 0) {
-      this.loadPage(0, this.lastPageIndex === 0);
+      this.loadPage(0, this.lastPageIndex === 0, 'end');
     }
   }
 }
