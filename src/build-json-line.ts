@@ -111,7 +111,7 @@ export function buildLine(line: JSONLine): HTMLElement {
   ) {
     const el = document.createElement('li');
     el.classList.add(
-      'absolute',
+      'relative',
       'rounded',
       'hover:bg-sky-50',
       'w-full',

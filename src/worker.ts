@@ -29,6 +29,16 @@ function parseJsonStream(stats: StreamStats) {
     transform(chunk, controller) {
       const { lines, error } = tokensToLines.convertChunk(chunk);
 
+      // break lines in chunks of 55 items
+      // const chunkSize = 223;
+      // for (let i = 0; i < lines.length; i += chunkSize) {
+      //   controller.enqueue({
+      //     lines: lines.slice(i, i + chunkSize),
+      //     error: null,
+      //     processedBytes: stats.processedBytes,
+      //   } as JsonStreamChunk);
+      // }
+
       controller.enqueue({
         lines,
         error,
