@@ -52,6 +52,9 @@ export type JSONPrimitive = null | string | number | boolean;
 
 export type JsonStreamChunk = {
   lines: Array<JSONLine>;
-  processedBytes: number;
   error: ParserErrorType | null;
+  stats: {
+    processedBytes: number;
+    chunkIndex: number;
+  };
 };

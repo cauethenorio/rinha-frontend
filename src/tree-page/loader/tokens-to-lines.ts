@@ -5,7 +5,7 @@ import {
   JSONLineType,
   JSONPrimitive,
   ParserErrorType,
-} from '../types.ts';
+} from 'src/types.ts';
 
 type ReaderPositionStats = {
   col: number;

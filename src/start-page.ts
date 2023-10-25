@@ -3,7 +3,7 @@ export class StartPage {
 
   els = {
     page: this.getById('page'),
-    button: this.getById('json-input-button'),
+    button: this.getById<HTMLButtonElement>('json-input-button'),
     fileInput: this.getById('json-input'),
     errorPlaceholder: this.getById('error-placeholder'),
   };
@@ -32,16 +32,33 @@ export class StartPage {
       // clear error msg
       this.setError('');
 
-      const jsonFile = (event.currentTarget! as HTMLInputElement).files![0];
+      const jsonFile = (event.currentTarget! as HTMLInputElement).files?.[0];
 
-      loadFile(jsonFile).then(this.hide, error => {
-        if ('type' in error && error.type === 'invalid-file') {
-          return this.setError(error.message);
-        }
-        // a bug
-        throw error;
-      });
+      this.setLoading(jsonFile != null);
+
+      loadFile(jsonFile).then(
+        () => {
+          this.hide();
+        },
+        error => {
+          this.setLoading(false);
+
+          if ('type' in error && error.type === 'invalid-file') {
+            return this.setError(error.message);
+          }
+          // a bug
+          throw error;
+        },
+      );
     });
+  }
+
+  setLoading(isLoading: boolean) {
+    this.els.button.disabled = isLoading;
+
+    this.els.button
+      .querySelector('svg')!
+      .classList.toggle('hidden', !isLoading);
   }
 
   setError = (message: string) => {

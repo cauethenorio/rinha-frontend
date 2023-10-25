@@ -1,9 +1,11 @@
 import { fromReadablePort, fromWritablePort } from 'remote-web-streams';
-import { JsonStreamChunk } from './types';
-import { JsonTokens2Lines } from './parser/tokens-to-lines';
+import { JsonTokens2Lines } from './tokens-to-lines';
+
+import type { JsonStreamChunk } from 'src/types';
 
 type StreamStats = {
   processedBytes: number;
+  chunkIndex: number;
 };
 
 self.onmessage = async event => {
@@ -12,10 +14,11 @@ self.onmessage = async event => {
   const readable = fromReadablePort(readablePort);
   const writable = fromWritablePort(writablePort);
 
-  const streamStats: StreamStats = { processedBytes: 0 };
+  const streamStats: StreamStats = { processedBytes: 0, chunkIndex: -1 };
 
   // process data
   await readable
+    .pipeThrough(limitChunkSizeStream(10000))
     .pipeThrough(addStreamStatsToChunkStream(streamStats))
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(parseJsonStream(streamStats))
@@ -29,21 +32,7 @@ function parseJsonStream(stats: StreamStats) {
     transform(chunk, controller) {
       const { lines, error } = tokensToLines.convertChunk(chunk);
 
-      // break lines in chunks of 55 items
-      // const chunkSize = 223;
-      // for (let i = 0; i < lines.length; i += chunkSize) {
-      //   controller.enqueue({
-      //     lines: lines.slice(i, i + chunkSize),
-      //     error: null,
-      //     processedBytes: stats.processedBytes,
-      //   } as JsonStreamChunk);
-      // }
-
-      controller.enqueue({
-        lines,
-        error,
-        processedBytes: stats.processedBytes,
-      } as JsonStreamChunk);
+      controller.enqueue({ lines, error, stats } as JsonStreamChunk);
 
       if (error) {
         controller.terminate();
@@ -55,11 +44,7 @@ function parseJsonStream(stats: StreamStats) {
 
       // capture unexpected end of file errors
       if (lines.length) {
-        controller.enqueue({
-          lines,
-          error,
-          processedBytes: stats.processedBytes,
-        } as JsonStreamChunk);
+        controller.enqueue({ lines, error, stats } as JsonStreamChunk);
       }
 
       if (error) {
@@ -73,7 +58,18 @@ function addStreamStatsToChunkStream(stats: StreamStats) {
   return new TransformStream({
     transform(chunk, controller) {
       stats.processedBytes += chunk.length;
+      stats.chunkIndex++;
       controller.enqueue(chunk);
+    },
+  });
+}
+
+function limitChunkSizeStream(maxChunkSize: number) {
+  return new TransformStream({
+    transform(chunk, controller) {
+      for (let i = 0; i < chunk.length; i += maxChunkSize) {
+        controller.enqueue(chunk.slice(i, i + maxChunkSize));
+      }
     },
   });
 }

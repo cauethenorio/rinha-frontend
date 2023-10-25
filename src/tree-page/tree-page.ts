@@ -1,131 +1,107 @@
-import { getWorkerJsonParserTransformStream } from '../get-worker.ts';
-import { JsonStreamChunk, ParserErrorType } from 'src/types';
+import { getWorkerJsonParserTransformStream } from './loader/get-worker.ts';
+import { validateJsonType } from './loader/validate-json-type';
 
-//import { LoadBar } from '../load-bar.ts';
 import { VirtualList } from './renderer/virtual-list';
+import { namedTree } from 'src/dom-utils';
 
 export class TreePage {
-  prefix = 'tree-page__';
+  private virtualList?: VirtualList;
 
-  els = {
-    page: this.getById('page'),
-    treeContainer: this.getById('tree-container'),
-    fileName: this.getById('filename'),
-  };
+  els: {
+    page: HTMLDivElement;
+    listContainer: HTMLDivElement;
+    title: HTMLHeadingElement;
+  } | null = null;
+
+  // els = {
+  //   page: this.getById('page'),
+  //   treeContainer: this.getById('tree-container'),
+  //   fileName: this.getById('filename'),
+  // };
 
   loadMore: null | ((v: unknown) => void) = null;
 
-  async loadJsonFile(file: File) {
+  loadJsonFile = (file: File) => {
     return new Promise<void>((resolve, reject) => {
-      const fileName = file.name;
-      const fileSize = file.size;
-
-      let readChunks = 0;
-
-      const virtualList = new VirtualList(this.els.treeContainer);
-      //const loadBar = new LoadBar(this.els.page);
+      const self = this;
 
       file
         .stream()
         .pipeThrough(getWorkerJsonParserTransformStream())
         .pipeThrough(
-          validateFileType({
+          validateJsonType({
             onValidFile: () => {
-              this.show(fileName);
+              this.mount(file);
               resolve();
             },
-            onInvalidFile: error => {
-              this.hide();
-              reject(error);
-            },
+            onInvalidFile: reject,
           }),
         )
         .pipeTo(
           new WritableStream({
-            write({ lines, processedBytes }) {
-              return new Promise(resolve => {
-                readChunks++;
+            write({ lines, stats: { processedBytes, chunkIndex } }) {
+              return new Promise(loadNext => {
+                console.log('read ', { chunkIndex, processedBytes, lines });
 
-                console.log(
-                  'read ',
-                  processedBytes,
-                  (processedBytes / fileSize) * 100,
-                  lines,
-                );
+                self.virtualList!.appendLines(lines, loadNext, processedBytes);
 
-                //loadBar.setLoadProgress(processedBytes / fileSize);
-                const percentageRead = processedBytes / fileSize;
+                if (chunkIndex === 0) {
+                  // display the tree after the first page of the virtual list is displayed
+                  self.display();
+                }
 
-                virtualList.appendLines(
-                  lines,
-                  resolve,
-                  // percentage read
-                  percentageRead === 1,
-                );
-
-                //virtualList.setCallbackToLoadMoreLines(resolve);
-
-                if (percentageRead === 1) {
-                  // always load two chunks to ensure unexpected end of file
-                  // error are captured as they are sent in the second chunk
-                  resolve();
+                if (processedBytes === file.size) {
+                  // always read an additional chunk to make sure that
+                  // unexpected end of file error is captured for small json
+                  // files as it's sent in the second chunk
+                  loadNext();
                 }
               });
             },
           }),
         );
     });
+  };
+
+  mount(file: File) {
+    this.els = namedTree<{
+      page: HTMLDivElement;
+      listContainer: HTMLDivElement;
+      title: HTMLHeadingElement;
+    }>(t =>
+      t(
+        'div!page',
+        {
+          class:
+            'container max-w-5xl mx-auto relative py-6 px-3 translate-x-10 opacity-0 transition duration-500 delay-200',
+        },
+        [
+          t('h1!title', { class: 'text-[32px] font-bold' }),
+          t('ul!listContainer', {
+            class: 'relative text-base leading-7 pt-[10px]',
+            role: 'group',
+          }),
+        ],
+      ),
+    );
+    this.els.title.textContent = file.name;
+    document.body.appendChild(this.els.page);
+
+    this.virtualList = new VirtualList(this.els.listContainer, file.size);
+    this.virtualList.mount();
   }
 
-  show(filename: string) {
-    this.els.fileName.textContent = filename;
-    //this.els.page.classList.remove('hidden');
+  display() {
     requestAnimationFrame(() => {
-      this.els.page.classList.replace('opacity-0', 'opacity-100');
-      this.els.page.classList.remove('translate-x-10');
+      this.els!.page.classList.replace('opacity-0', 'opacity-100');
+      this.els!.page.classList.remove('translate-x-10');
     });
   }
 
-  hide() {
-    this.els.page.classList.add('hidden');
-    this.els.treeContainer.textContent = '';
-    this.els.fileName.textContent = '';
+  unmount() {
+    this.virtualList?.unmount();
+    this.els?.page.remove();
+    this.els = null;
     this.loadMore = null;
   }
-
-  getById<E extends HTMLElement>(id: string): E {
-    const completeId = `${this.prefix}${id}`;
-    const el = document.getElementById(completeId) as E;
-    if (!el) {
-      throw new Error(`Element with id '${completeId}' not found`);
-    }
-    return el;
-  }
-}
-
-function validateFileType({
-  onValidFile,
-  onInvalidFile,
-}: {
-  onValidFile: () => unknown;
-  onInvalidFile: (error: ParserErrorType) => unknown;
-}) {
-  let isValidJsonFile = false;
-
-  return new TransformStream<JsonStreamChunk, JsonStreamChunk>({
-    transform(chunk, controller) {
-      if (chunk.error && chunk.error.type === 'invalid-file') {
-        onInvalidFile(chunk.error);
-        controller.terminate();
-      }
-      if (!isValidJsonFile && chunk.lines.length > 1) {
-        // it there were valid JSON tokens to be parsed, we assume
-        // the file is a valid JSON file
-        isValidJsonFile = true;
-        onValidFile();
-      }
-
-      controller.enqueue(chunk);
-    },
-  });
 }

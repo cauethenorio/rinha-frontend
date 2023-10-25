@@ -1,6 +1,7 @@
-import ParserWorker from './worker.ts?worker';
 import { RemoteReadableStream, RemoteWritableStream } from 'remote-web-streams';
-import { JsonStreamChunk } from './types';
+
+import ParserWorker from './worker.ts?worker';
+import type { JsonStreamChunk } from 'src/types';
 
 export function getWorkerJsonParserTransformStream(): {
   readable: ReadableStream<JsonStreamChunk>;

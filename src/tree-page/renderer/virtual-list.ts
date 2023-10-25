@@ -1,6 +1,7 @@
 import { JSONLine } from 'src/types';
 import { VirtualListLimitObserver } from './virtual-list-limit-observer.ts';
 import { VirtualListPage } from './virtual-list-page.ts';
+import { VirtualScrollbar } from './virtual-scrollbar';
 
 export class VirtualList {
   itemsPerPage = 100;
@@ -8,16 +9,31 @@ export class VirtualList {
   lastPageIndex: number = Infinity;
   pages: Array<VirtualListPage> = [];
   loadMore: null | (() => unknown) = null;
+  scrollbar: VirtualScrollbar;
 
   startObserver: VirtualListLimitObserver;
   endObserver: VirtualListLimitObserver;
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(
+    private readonly root: HTMLElement,
+    private fileSize: number,
+  ) {
+    this.scrollbar = new VirtualScrollbar(fileSize);
     this.startObserver = new VirtualListLimitObserver(
       this.onReachListStart,
       20,
     );
     this.endObserver = new VirtualListLimitObserver(this.onReachListEnd, 10);
+  }
+
+  public mount() {
+    this.scrollbar.mount();
+  }
+
+  public unmount() {
+    this.scrollbar.unmount();
+    this.startObserver.unmount();
+    this.endObserver.unmount();
   }
 
   getLinesForPage(pageIndex: number) {
@@ -127,10 +143,11 @@ export class VirtualList {
   appendLines(
     lines: Array<JSONLine>,
     loadMore: () => unknown,
-    finished: boolean,
+    bytesRead: number,
   ) {
     this.lines = this.lines.concat(lines);
     this.loadMore = loadMore;
+    this.scrollbar.setBytesRead(bytesRead);
 
     for (const page of this.pages) {
       if (page.lines.length < this.itemsPerPage) {
@@ -139,7 +156,7 @@ export class VirtualList {
       }
     }
 
-    if (finished) {
+    if (this.fileSize === bytesRead) {
       console.log('finished loading');
       this.lastPageIndex = Math.ceil(this.lines.length / this.itemsPerPage) - 1;
 
