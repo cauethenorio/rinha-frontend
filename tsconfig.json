@@ -5,6 +5,10 @@
     "module": "ESNext",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["src/*"]
+    },
 
     /* Bundler mode */
     "moduleResolution": "bundler",

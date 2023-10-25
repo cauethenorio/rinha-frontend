@@ -1,8 +1,9 @@
 import { buildLine } from './build-json-line.ts';
 import { getWorkerJsonParserTransformStream } from './get-worker.ts';
 import { JSONLine, JsonStreamChunk, ParserErrorType } from './types.ts';
-//import { VirtualList } from './virtual-list';
+
 import { LoadBar } from './load-bar.ts';
+import { VirtualListLimitObserver } from './tree-page/renderer/virtual-list-limit-observer';
 
 class PaginatedListPage {
   pageEl: HTMLElement;
@@ -108,19 +109,18 @@ class PaginatedList {
   pages: Array<PaginatedListPage> = [];
   loadMore: null | (() => unknown) = null;
 
-  loadNextEl: HTMLElement | null = null;
-  loadPreviousEl: HTMLElement | null = null;
-
-  loadingSkeletonEl: HTMLElement;
+  startObserver: VirtualListLimitObserver;
+  endObserver: VirtualListLimitObserver;
 
   constructor(
     private readonly root: HTMLElement,
     private readonly buildLine: (line: JSONLine) => HTMLElement,
   ) {
-    // this.loadingSkeletonEl = document.createElement('div');
-    // this.loadingSkeletonEl.style.height = '1000px';
-    // this.loadingSkeletonEl.style.backgroundColor = 'red';
-    // root.appendChild(this.loadingSkeletonEl);
+    this.startObserver = new VirtualListLimitObserver(
+      this.onReachListStart,
+      20,
+    );
+    this.endObserver = new VirtualListLimitObserver(this.onReachListEnd, 10);
   }
 
   getLinesForPage(pageIndex: number) {
@@ -130,16 +130,12 @@ class PaginatedList {
     );
   }
 
-  appendPage(pageEl: HTMLElement) {
-    this.root.insertBefore(pageEl, this.loadingSkeletonEl);
-  }
-
   onReachListStart = () => {
     if (this.pages.length > 2) {
       this.unloadPageAt(-1);
     }
 
-    const prevPageIndex = this.pages.at(0).pageIndex - 1;
+    const prevPageIndex = this.pages.at(0)!.pageIndex - 1;
 
     if (prevPageIndex >= 0) {
       const currentScroll = window.scrollY;
@@ -151,8 +147,7 @@ class PaginatedList {
       });
 
       if (prevPageIndex === 0) {
-        this.loadPreviousEl?.remove();
-        this.loadPreviousEl = null;
+        this.startObserver.unmount();
       }
     }
   };
@@ -162,13 +157,12 @@ class PaginatedList {
       this.unloadPageAt(0);
     }
 
-    const nextPageIndex = this.pages.at(-1).pageIndex + 1;
+    const nextPageIndex = this.pages.at(-1)!.pageIndex + 1;
 
     if (nextPageIndex <= this.lastPageIndex) {
       this.loadPage(nextPageIndex, nextPageIndex === this.lastPageIndex);
     } else {
-      this.loadNextEl?.remove();
-      this.loadNextEl = null;
+      this.endObserver.unmount();
     }
   };
 
@@ -182,10 +176,10 @@ class PaginatedList {
   insertPageNode = (pageEl: HTMLElement, index: number) => {
     if (index < this.pages[0]?.pageIndex ?? -1) {
       // we are adding a page at the start of the list
-      this.loadPreviousEl?.insertAdjacentElement('afterend', pageEl);
+      this.startObserver.el?.insertAdjacentElement('afterend', pageEl);
     } else {
-      if (this.loadNextEl) {
-        this.root.insertBefore(pageEl, this.loadNextEl);
+      if (this.endObserver.isMounted) {
+        this.root.insertBefore(pageEl, this.endObserver.el);
       } else {
         this.root.appendChild(pageEl);
       }
@@ -215,47 +209,19 @@ class PaginatedList {
     this.pages.push(page);
     this.pages.sort((a, b) => a.pageIndex - b.pageIndex);
 
-    if (!isLastPage && this.loadNextEl == null) {
-      this.addLoadNextArea();
+    if (!isLastPage && !this.endObserver.isMounted) {
+      const endObserverEl = this.endObserver.mount();
+      this.root.appendChild(endObserverEl);
     }
 
-    if (this.pages[0].pageIndex > 0 && this.loadPreviousEl == null) {
+    if (this.pages[0].pageIndex > 0 && !this.startObserver.isMounted) {
       console.log('added');
-      this.addLoadPreviousArea();
+      this.root.prepend(this.startObserver.mount());
     }
 
     return page;
   };
 
-  addLoadNextArea() {
-    this.loadNextEl = document.createElement('div');
-    this.loadNextEl.style.height = '1000px';
-    this.loadNextEl.style.backgroundColor = 'red';
-    this.root.appendChild(this.loadNextEl);
-
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        this.onReachListEnd();
-      }
-    }, {});
-
-    observer.observe(this.loadNextEl);
-  }
-
-  addLoadPreviousArea() {
-    this.loadPreviousEl = document.createElement('div');
-    this.loadPreviousEl.style.height = '1000px';
-    this.loadPreviousEl.style.backgroundColor = 'blue';
-    this.root.prepend(this.loadPreviousEl);
-
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        this.onReachListStart();
-      }
-    }, {});
-
-    observer.observe(this.loadPreviousEl);
-  }
   appendLines(
     lines: Array<JSONLine>,
     loadMore: () => unknown,

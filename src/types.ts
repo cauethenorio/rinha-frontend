@@ -5,6 +5,7 @@ export enum JSONLineType {
   CloseObject,
   Property,
   Error,
+  Loading,
 }
 
 export type JSONLine =
@@ -28,6 +29,11 @@ export type JSONLine =
       type: JSONLineType.Error;
       level: number;
       message: string;
+    }
+  | {
+      type: JSONLineType.Loading;
+      level: number;
+      width: number;
     };
 
 // type: JSONLineType;
