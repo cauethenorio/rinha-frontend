@@ -66,6 +66,7 @@ export function renderLine(line: JSONLine): HTMLElement {
         'border-red-800',
         'border',
         'p-2',
+        'my-1',
         'rounded',
       );
       msg.textContent = `⚠️ ${line.message}`;
