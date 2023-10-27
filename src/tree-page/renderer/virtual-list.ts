@@ -1,3 +1,4 @@
+import { ListKeyboardNavigator } from 'src/tree-page/renderer/list-keyboard-navigator.ts';
 import { JSONLine } from 'src/types';
 import { VirtualListLimitObserver } from './virtual-list-limit-observer.ts';
 import { VirtualListPage } from './virtual-list-page.ts';
@@ -9,9 +10,10 @@ export class VirtualList {
   lastPageIndex: number = Infinity;
   pages: Array<VirtualListPage> = [];
   loadMore: null | (() => unknown) = null;
-  scrollbar: VirtualLoadBar;
   visiblePages = new Map<number, number>();
 
+  scrollbar: VirtualLoadBar;
+  keyboardNavigator: ListKeyboardNavigator;
   startObserver: VirtualListLimitObserver;
   endObserver: VirtualListLimitObserver;
 
@@ -25,11 +27,13 @@ export class VirtualList {
       20,
     );
     this.endObserver = new VirtualListLimitObserver(this.onReachListEnd, 10);
+    this.keyboardNavigator = new ListKeyboardNavigator(this.root);
   }
 
   public mount() {}
 
   public unmount() {
+    this.keyboardNavigator.unmount();
     this.scrollbar.unmount();
     this.startObserver.unmount();
     this.endObserver.unmount();
@@ -51,7 +55,7 @@ export class VirtualList {
 
     if (prevPageIndex >= 0) {
       const currentScroll = window.scrollY;
-      const page = this.loadPage(prevPageIndex, false, 'start');
+      const page = this.loadPage(prevPageIndex, false, 'start').page;
 
       window.scrollTo({
         behavior: 'instant',
@@ -97,11 +101,20 @@ export class VirtualList {
     }
   };
 
+  loadInitialPage() {
+    this.loadPage(0, this.lastPageIndex === 0, 'end').renderingPromise.then(
+      () => {
+        this.scrollbar.updatePosition(this.visiblePages);
+        this.keyboardNavigator.mount();
+      },
+    );
+  }
+
   loadPage = (
     pageIndex: number,
     isLastPage: boolean,
     listPosition: 'start' | 'end',
-  ) => {
+  ): { page: VirtualListPage; renderingPromise: Promise<void> } => {
     // load more lines if there aren't enough to fill next page
     if (this.lines.length < (pageIndex + 1) * this.linesPerPage) {
       this.loadMore?.();
@@ -114,11 +127,11 @@ export class VirtualList {
 
     this.insertPageNode(page.mount(), listPosition);
 
-    if (listPosition === 'start') {
-      page.renderAllLines();
-    } else {
-      page.asyncRenderVisibleLines();
-    }
+    const renderingPromise = Promise.resolve(
+      listPosition === 'start'
+        ? page.renderAllLines()
+        : page.asyncRenderVisibleLines(),
+    );
 
     page.onScrollPositionChange = position => {
       if (position != null) {
@@ -142,7 +155,7 @@ export class VirtualList {
       this.root.prepend(this.startObserver.mount());
     }
 
-    return page;
+    return { page, renderingPromise };
   };
 
   appendLines(
@@ -166,7 +179,7 @@ export class VirtualList {
     }
 
     if (this.pages.length === 0) {
-      this.loadPage(0, this.lastPageIndex === 0, 'end');
+      this.loadInitialPage();
     }
   }
 }

@@ -137,7 +137,7 @@ export function renderLine(line: JSONLine): HTMLElement {
     );
     el.setAttribute('aria-level', (line.level + 1).toString());
     el.setAttribute('role', 'treeitem');
-    el.setAttribute('tabindex', '0');
+    el.setAttribute('tabindex', '-1');
 
     for (let i = 0; i < line.level; i++) {
       const verticalLineEl = document.createElement('div');

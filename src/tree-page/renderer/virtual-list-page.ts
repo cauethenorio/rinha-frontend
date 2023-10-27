@@ -64,7 +64,12 @@ export class VirtualListPage {
   };
 
   asyncRenderVisibleLines = () => {
-    requestAnimationFrame(this.renderVisibleLines);
+    return new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        this.renderVisibleLines();
+        resolve();
+      });
+    });
   };
 
   renderAllLines() {
