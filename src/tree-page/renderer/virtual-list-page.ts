@@ -10,7 +10,6 @@ export class VirtualListPage {
     null;
 
   constructor(
-    private scrollable: HTMLElement,
     public pageIndex: number,
     public lines: Array<JSONLine>,
   ) {}
@@ -19,7 +18,7 @@ export class VirtualListPage {
     this.el = document.createElement('div');
     this.el.classList.add('page', 'page' + this.pageIndex);
 
-    this.scrollable.addEventListener(
+    window.addEventListener(
       'scroll',
       this.capturePositionAndAsyncRenderVisibleLines,
       {
@@ -31,7 +30,7 @@ export class VirtualListPage {
   }
 
   public unmount() {
-    this.scrollable.removeEventListener(
+    window.removeEventListener(
       'scroll',
       this.capturePositionAndAsyncRenderVisibleLines,
     );
@@ -42,10 +41,10 @@ export class VirtualListPage {
 
   captureScrollPosition() {
     if (this.onScrollPositionChange) {
-      const scrollableHeight = this.scrollable.clientHeight;
+      const viewportHeight = window.innerHeight;
       const { height, top, bottom } = this.el!.getBoundingClientRect();
 
-      if (bottom < 0 || top > scrollableHeight) {
+      if (bottom < 0 || top > viewportHeight) {
         // the page isn't visible
         return this.onScrollPositionChange(null);
       }
@@ -54,14 +53,14 @@ export class VirtualListPage {
       const totalHeight =
         (height / this.renderedLines.length) * this.lines.length;
 
-      const intersectionEnd = Math.min(scrollableHeight - top, totalHeight);
+      const intersectionEnd = Math.min(viewportHeight - top, totalHeight);
       this.onScrollPositionChange(intersectionEnd / totalHeight);
     }
   }
 
   capturePositionAndAsyncRenderVisibleLines = () => {
     this.captureScrollPosition();
-    return this.asyncRenderVisibleLines();
+    this.asyncRenderVisibleLines();
   };
 
   asyncRenderVisibleLines = () => {
@@ -89,7 +88,7 @@ export class VirtualListPage {
 
     const pageRect = this.el!.getBoundingClientRect();
     const heightToBeFilled =
-      this.scrollable.scrollHeight -
+      window.innerHeight -
       (this.renderedLines.at(-1)?.getBoundingClientRect().top ?? pageRect.top) +
       this.additionalRenderHeight;
 

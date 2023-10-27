@@ -13,55 +13,13 @@ export class TreePage {
     title: HTMLHeadingElement;
   } | null = null;
 
+  // els = {
+  //   page: this.getById('page'),
+  //   treeContainer: this.getById('tree-container'),
+  //   fileName: this.getById('filename'),
+  // };
+
   loadMore: null | ((v: unknown) => void) = null;
-
-  mount(file: File) {
-    this.els = namedTree<{
-      page: HTMLDivElement;
-      listContainer: HTMLDivElement;
-      title: HTMLHeadingElement;
-    }>(t =>
-      t(
-        'div!page',
-        {
-          class:
-            'absolute top-0 end-0 bottom-0 start-0 ' +
-            'py-6 px-3 translate-x-10 opacity-0 transition duration-500 ' +
-            'delay-200 overflow-auto',
-        },
-        t('div', { class: 'container max-w-5xl mx-auto' }, [
-          t('h1!title', { class: 'text-[32px] font-bold' }),
-          t('ul!listContainer', {
-            class: 'relative text-base leading-7 pt-[10px]',
-            role: 'group',
-          }),
-        ]),
-      ),
-    );
-    this.els.title.textContent = file.name;
-    document.getElementById('app')!.appendChild(this.els.page);
-
-    this.virtualList = new VirtualList(
-      this.els.page,
-      this.els.listContainer,
-      file.size,
-    );
-    this.virtualList.mount();
-  }
-
-  display() {
-    requestAnimationFrame(() => {
-      this.els!.page.classList.replace('opacity-0', 'opacity-100');
-      this.els!.page.classList.remove('translate-x-10');
-    });
-  }
-
-  unmount() {
-    this.virtualList?.unmount();
-    this.els?.page.remove();
-    this.els = null;
-    this.loadMore = null;
-  }
 
   loadJsonFile = (file: File) => {
     return new Promise<void>((resolve, reject) => {
@@ -102,4 +60,46 @@ export class TreePage {
         );
     });
   };
+
+  mount(file: File) {
+    this.els = namedTree<{
+      page: HTMLDivElement;
+      listContainer: HTMLDivElement;
+      title: HTMLHeadingElement;
+    }>(t =>
+      t(
+        'div!page',
+        {
+          class:
+            'container max-w-5xl mx-auto relative py-6 px-3 translate-x-10 opacity-0 transition duration-500 delay-200',
+        },
+        [
+          t('h1!title', { class: 'text-[32px] font-bold' }),
+          t('ul!listContainer', {
+            class: 'relative text-base leading-7 pt-[10px]',
+            role: 'group',
+          }),
+        ],
+      ),
+    );
+    this.els.title.textContent = file.name;
+    document.body.appendChild(this.els.page);
+
+    this.virtualList = new VirtualList(this.els.listContainer, file.size);
+    this.virtualList.mount();
+  }
+
+  display() {
+    requestAnimationFrame(() => {
+      this.els!.page.classList.replace('opacity-0', 'opacity-100');
+      this.els!.page.classList.remove('translate-x-10');
+    });
+  }
+
+  unmount() {
+    this.virtualList?.unmount();
+    this.els?.page.remove();
+    this.els = null;
+    this.loadMore = null;
+  }
 }

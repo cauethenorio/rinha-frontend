@@ -2,7 +2,7 @@ type Child = HTMLElement | string;
 
 // poor man's JSX for DOM creation
 // usage: tree('div', { class: 'foo' }, [tag('span', {}, 'text')])
-export function tree(
+function tree(
   name: string,
   attrs: Record<string, string> = {},
   children: Child | Child[] = [],
