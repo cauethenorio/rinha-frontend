@@ -177,7 +177,6 @@ export class ListKeyboardNavigator {
 
     if (lastLineElement != null) {
       this.setActive(lastLineElement as HTMLElement);
-      debugger;
       return true;
     }
     return false;

@@ -9,6 +9,7 @@ export class VirtualListLimitObserver {
   public isMounted = false;
 
   constructor(
+    private scrollable: HTMLElement,
     private onIntersect: () => void,
     private numLines: number = 10,
   ) {}
@@ -17,11 +18,17 @@ export class VirtualListLimitObserver {
     this.el = document.createElement('div');
     this.appendLoadingLines();
 
-    this.observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        this.onIntersect();
-      }
-    }, {});
+    this.observer = new IntersectionObserver(
+      entries => {
+        console.log('isIntersecting', entries[0].isIntersecting);
+        if (entries[0].isIntersecting) {
+          this.onIntersect();
+        }
+      },
+      {
+        root: this.scrollable,
+      },
+    );
 
     this.observer.observe(this.el);
     this.isMounted = true;
