@@ -1,4 +1,4 @@
-import { getWorkerJsonParserTransformStream } from './loader/get-worker.ts';
+import { getWorkerJsonParserTransformStream } from './loader/get-worker';
 import { validateJsonType } from './loader/validate-json-type';
 
 import { VirtualList } from './renderer/virtual-list';

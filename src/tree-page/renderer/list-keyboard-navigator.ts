@@ -13,7 +13,11 @@ export class ListKeyboardNavigator {
     End: this.focusLastLine.bind(this),
   };
 
-  constructor(private root: HTMLElement) {}
+  constructor(
+    private root: HTMLElement,
+    private loadNextPage: () => void,
+    private loadPreviousPage: () => void,
+  ) {}
 
   queryFocusedLine() {
     this.root.querySelector('[data-focused]');
@@ -113,7 +117,11 @@ export class ListKeyboardNavigator {
   focusNextLine() {
     const nextLineElement = this.getNextLineElement();
     if (nextLineElement != null) {
-      this.setActive(nextLineElement as HTMLElement);
+      if (this.activeLine === nextLineElement) {
+        this.loadNextPage();
+      } else {
+        this.setActive(nextLineElement as HTMLElement);
+      }
       return true;
     }
     return false;
@@ -122,6 +130,10 @@ export class ListKeyboardNavigator {
   focusPreviousLine() {
     const previousLineElement = this.getPreviousLineElement();
     if (previousLineElement != null) {
+      if (this.activeLine === previousLineElement) {
+        this.loadPreviousPage();
+      }
+
       this.setActive(previousLineElement as HTMLElement);
       return true;
     }
@@ -165,7 +177,11 @@ export class ListKeyboardNavigator {
   focusFirstLine() {
     const firstLineElement = this.root.querySelector(this.lineSelector);
     if (firstLineElement != null) {
-      this.setActive(firstLineElement as HTMLElement);
+      if (this.activeLine === firstLineElement) {
+        this.loadPreviousPage();
+      } else {
+        this.setActive(firstLineElement as HTMLElement);
+      }
       return true;
     }
     return false;
@@ -176,8 +192,11 @@ export class ListKeyboardNavigator {
     const lastLineElement = [...allRenderedLines].at(-1);
 
     if (lastLineElement != null) {
+      if (this.activeLine != null && this.activeLine === lastLineElement) {
+        this.loadNextPage();
+      }
+
       this.setActive(lastLineElement as HTMLElement);
-      debugger;
       return true;
     }
     return false;

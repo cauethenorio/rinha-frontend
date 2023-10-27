@@ -1,8 +1,9 @@
-import { ListKeyboardNavigator } from 'src/tree-page/renderer/list-keyboard-navigator.ts';
+import { tree } from 'src/dom-utils';
+import { ListKeyboardNavigator } from 'src/tree-page/renderer/list-keyboard-navigator';
 import { JSONLine } from 'src/types';
-import { VirtualListLimitObserver } from './virtual-list-limit-observer.ts';
-import { VirtualListPage } from './virtual-list-page.ts';
-import { VirtualLoadBar } from './virtual-load-bar.ts';
+import { VirtualListLimitObserver } from './virtual-list-limit-observer';
+import { VirtualListPage } from './virtual-list-page';
+import { VirtualLoadBar } from './virtual-load-bar';
 
 export class VirtualList {
   linesPerPage = 100;
@@ -12,13 +13,15 @@ export class VirtualList {
   loadMore: null | (() => unknown) = null;
   visiblePages = new Map<number, number>();
 
+  root?: HTMLElement;
+
   scrollbar: VirtualLoadBar;
-  keyboardNavigator: ListKeyboardNavigator;
+  keyboardNavigator?: ListKeyboardNavigator;
   startObserver: VirtualListLimitObserver;
   endObserver: VirtualListLimitObserver;
 
   constructor(
-    private readonly root: HTMLElement,
+    private readonly container: HTMLElement,
     private fileSize: number,
   ) {
     this.scrollbar = new VirtualLoadBar(fileSize, this.linesPerPage);
@@ -27,13 +30,20 @@ export class VirtualList {
       20,
     );
     this.endObserver = new VirtualListLimitObserver(this.onReachListEnd, 10);
-    this.keyboardNavigator = new ListKeyboardNavigator(this.root);
   }
 
-  public mount() {}
+  public mount() {
+    this.root = tree('div') as HTMLDivElement;
+    this.keyboardNavigator = new ListKeyboardNavigator(
+      this.root,
+      this.onReachListEnd,
+      this.onReachListStart,
+    );
+    this.container.appendChild(this.root);
+  }
 
   public unmount() {
-    this.keyboardNavigator.unmount();
+    this.keyboardNavigator?.unmount();
     this.scrollbar.unmount();
     this.startObserver.unmount();
     this.endObserver.unmount();
@@ -88,24 +98,11 @@ export class VirtualList {
     this.pages.splice(index, 1);
   }
 
-  insertPageNode = (pageEl: HTMLElement, listPosition: 'start' | 'end') => {
-    if (listPosition === 'start') {
-      // we are adding a page at the start of the list
-      this.startObserver.el?.insertAdjacentElement('afterend', pageEl);
-    } else {
-      if (this.endObserver.isMounted) {
-        this.root.insertBefore(pageEl, this.endObserver.el);
-      } else {
-        this.root.appendChild(pageEl);
-      }
-    }
-  };
-
   loadInitialPage() {
     this.loadPage(0, this.lastPageIndex === 0, 'end').renderingPromise.then(
       () => {
         this.scrollbar.updatePosition(this.visiblePages);
-        this.keyboardNavigator.mount();
+        this.keyboardNavigator?.mount();
       },
     );
   }
@@ -125,7 +122,11 @@ export class VirtualList {
       this.getLinesForPage(pageIndex),
     );
 
-    this.insertPageNode(page.mount(), listPosition);
+    if (listPosition === 'start') {
+      this.root!.prepend(page.mount());
+    } else {
+      this.root!.appendChild(page.mount());
+    }
 
     const renderingPromise = Promise.resolve(
       listPosition === 'start'
@@ -148,11 +149,11 @@ export class VirtualList {
 
     if (!isLastPage && !this.endObserver.isMounted) {
       const endObserverEl = this.endObserver.mount();
-      this.root.appendChild(endObserverEl);
+      this.container.appendChild(endObserverEl);
     }
 
     if (this.pages[0].pageIndex > 0 && !this.startObserver.isMounted) {
-      this.root.prepend(this.startObserver.mount());
+      this.container.prepend(this.startObserver.mount());
     }
 
     return { page, renderingPromise };
