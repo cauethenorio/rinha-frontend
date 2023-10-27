@@ -45,7 +45,6 @@ export class VirtualListLimitObserver {
           width: this.getRandomBetween(20, 80),
         }),
       );
-      console.log({ type: JSONLineType.Loading, level });
       level = this.getRandomLevel(level);
     }
   }

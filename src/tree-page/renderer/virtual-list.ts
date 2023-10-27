@@ -1,15 +1,16 @@
 import { JSONLine } from 'src/types';
 import { VirtualListLimitObserver } from './virtual-list-limit-observer.ts';
 import { VirtualListPage } from './virtual-list-page.ts';
-import { VirtualScrollbar } from './virtual-scrollbar';
+import { VirtualLoadBar } from './virtual-load-bar.ts';
 
 export class VirtualList {
-  itemsPerPage = 100;
+  linesPerPage = 100;
   lines: Array<JSONLine> = [];
   lastPageIndex: number = Infinity;
   pages: Array<VirtualListPage> = [];
   loadMore: null | (() => unknown) = null;
-  scrollbar: VirtualScrollbar;
+  scrollbar: VirtualLoadBar;
+  visiblePages = new Map<number, number>();
 
   startObserver: VirtualListLimitObserver;
   endObserver: VirtualListLimitObserver;
@@ -18,7 +19,7 @@ export class VirtualList {
     private readonly root: HTMLElement,
     private fileSize: number,
   ) {
-    this.scrollbar = new VirtualScrollbar(fileSize);
+    this.scrollbar = new VirtualLoadBar(fileSize, this.linesPerPage);
     this.startObserver = new VirtualListLimitObserver(
       this.onReachListStart,
       20,
@@ -26,9 +27,7 @@ export class VirtualList {
     this.endObserver = new VirtualListLimitObserver(this.onReachListEnd, 10);
   }
 
-  public mount() {
-    this.scrollbar.mount();
-  }
+  public mount() {}
 
   public unmount() {
     this.scrollbar.unmount();
@@ -38,8 +37,8 @@ export class VirtualList {
 
   getLinesForPage(pageIndex: number) {
     return this.lines.slice(
-      pageIndex * this.itemsPerPage,
-      (pageIndex + 1) * this.itemsPerPage,
+      pageIndex * this.linesPerPage,
+      (pageIndex + 1) * this.linesPerPage,
     );
   }
 
@@ -81,7 +80,6 @@ export class VirtualList {
 
   unloadPageAt(index: number) {
     const page = this.pages.at(index);
-    console.log('unloaded page', page?.pageIndex);
     page?.unmount();
     this.pages.splice(index, 1);
   }
@@ -104,10 +102,8 @@ export class VirtualList {
     isLastPage: boolean,
     listPosition: 'start' | 'end',
   ) => {
-    console.log('loading page', pageIndex);
-
     // load more lines if there aren't enough to fill next page
-    if (this.lines.length < (pageIndex + 1) * this.itemsPerPage) {
+    if (this.lines.length < (pageIndex + 1) * this.linesPerPage) {
       this.loadMore?.();
     }
 
@@ -124,6 +120,16 @@ export class VirtualList {
       page.asyncRenderVisibleLines();
     }
 
+    page.onScrollPositionChange = position => {
+      if (position != null) {
+        this.visiblePages.set(pageIndex, position);
+      } else {
+        this.visiblePages.delete(pageIndex);
+      }
+      this.scrollbar.updatePosition(this.visiblePages);
+    };
+    page.captureScrollPosition();
+
     this.pages.push(page);
     this.pages.sort((a, b) => a.pageIndex - b.pageIndex);
 
@@ -133,7 +139,6 @@ export class VirtualList {
     }
 
     if (this.pages[0].pageIndex > 0 && !this.startObserver.isMounted) {
-      console.log('added');
       this.root.prepend(this.startObserver.mount());
     }
 
@@ -147,22 +152,17 @@ export class VirtualList {
   ) {
     this.lines = this.lines.concat(lines);
     this.loadMore = loadMore;
-    this.scrollbar.setBytesRead(bytesRead);
+    this.scrollbar.updateLoadStats({ bytesRead, lines: this.lines.length });
 
     for (const page of this.pages) {
-      if (page.lines.length < this.itemsPerPage) {
+      if (page.lines.length < this.linesPerPage) {
         page.lines = this.getLinesForPage(page.pageIndex);
         page.renderVisibleLines();
       }
     }
 
     if (this.fileSize === bytesRead) {
-      console.log('finished loading');
-      this.lastPageIndex = Math.ceil(this.lines.length / this.itemsPerPage) - 1;
-
-      if (this.pages.length >= this.lastPageIndex) {
-        //this.pages[this.lastPageIndex].setAsFinalPage();
-      }
+      this.lastPageIndex = Math.ceil(this.lines.length / this.linesPerPage) - 1;
     }
 
     if (this.pages.length === 0) {

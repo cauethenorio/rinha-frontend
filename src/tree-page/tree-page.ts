@@ -41,8 +41,6 @@ export class TreePage {
           new WritableStream({
             write({ lines, stats: { processedBytes, chunkIndex } }) {
               return new Promise(loadNext => {
-                console.log('read ', { chunkIndex, processedBytes, lines });
-
                 self.virtualList!.appendLines(lines, loadNext, processedBytes);
 
                 if (chunkIndex === 0) {

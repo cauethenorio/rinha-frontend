@@ -6,6 +6,9 @@ export class VirtualListPage {
   private renderedLines: Array<HTMLElement> = [];
   private additionalRenderHeight = 500;
 
+  public onScrollPositionChange: null | ((position: null | number) => unknown) =
+    null;
+
   constructor(
     public pageIndex: number,
     public lines: Array<JSONLine>,
@@ -14,36 +17,57 @@ export class VirtualListPage {
   public mount() {
     this.el = document.createElement('div');
     this.el.classList.add('page', 'page' + this.pageIndex);
-    this.el.style.borderBottom = '1px solid black';
 
-    window.addEventListener('scroll', this.asyncRenderVisibleLines, {
-      passive: true,
-    });
+    window.addEventListener(
+      'scroll',
+      this.capturePositionAndAsyncRenderVisibleLines,
+      {
+        passive: true,
+      },
+    );
 
     return this.el;
   }
 
   public unmount() {
-    window.removeEventListener('scroll', this.asyncRenderVisibleLines);
+    window.removeEventListener(
+      'scroll',
+      this.capturePositionAndAsyncRenderVisibleLines,
+    );
+    this.onScrollPositionChange = null;
     this.el?.remove();
     this.el = undefined;
   }
 
-  // public hasPendingLines() {
-  //   debugger;
-  //   return this.lines.length > this.renderedLines.length;
-  // }
-  //
-  // setAsFinalPage() {
-  //   debugger;
-  // }
+  captureScrollPosition() {
+    if (this.onScrollPositionChange) {
+      const viewportHeight = window.innerHeight;
+      const { height, top, bottom } = this.el!.getBoundingClientRect();
+
+      if (bottom < 0 || top > viewportHeight) {
+        // the page isn't visible
+        return this.onScrollPositionChange(null);
+      }
+
+      // estimated total page height based on rendered lines
+      const totalHeight =
+        (height / this.renderedLines.length) * this.lines.length;
+
+      const intersectionEnd = Math.min(viewportHeight - top, totalHeight);
+      this.onScrollPositionChange(intersectionEnd / totalHeight);
+    }
+  }
+
+  capturePositionAndAsyncRenderVisibleLines = () => {
+    this.captureScrollPosition();
+    this.asyncRenderVisibleLines();
+  };
 
   asyncRenderVisibleLines = () => {
     requestAnimationFrame(this.renderVisibleLines);
   };
 
   renderAllLines() {
-    console.log('rendering all lines of page', this.pageIndex);
     for (let i = this.renderedLines.length; i < this.lines.length; i++) {
       const line = this.lines[i];
       const lineEl = renderLine(line);
@@ -54,7 +78,6 @@ export class VirtualListPage {
 
   renderVisibleLines = () => {
     if (this.renderedLines.length >= this.lines.length) {
-      // nothing left to be done after all page lines are rendered
       return;
     }
 
@@ -64,10 +87,10 @@ export class VirtualListPage {
       (this.renderedLines.at(-1)?.getBoundingClientRect().top ?? pageRect.top) +
       this.additionalRenderHeight;
 
-    let filled = 0;
+    let renderedHeight = 0;
 
     for (let i = this.renderedLines.length; i < this.lines.length; i++) {
-      if (filled >= heightToBeFilled) {
+      if (renderedHeight >= heightToBeFilled) {
         break;
       }
 
@@ -77,7 +100,7 @@ export class VirtualListPage {
       this.renderedLines.push(lineEl);
       this.el!.appendChild(lineEl);
 
-      filled += lineEl.getBoundingClientRect().height;
+      renderedHeight += lineEl.getBoundingClientRect().height;
     }
   };
 }
