@@ -5,7 +5,6 @@ import type { JsonStreamChunk } from 'src/types';
 
 type StreamStats = {
   processedBytes: number;
-  chunkIndex: number;
 };
 
 self.onmessage = async event => {
@@ -14,7 +13,7 @@ self.onmessage = async event => {
   const readable = fromReadablePort(readablePort);
   const writable = fromWritablePort(writablePort);
 
-  const streamStats: StreamStats = { processedBytes: 0, chunkIndex: -1 };
+  const streamStats: StreamStats = { processedBytes: 0 };
 
   // process data
   await readable
@@ -58,7 +57,6 @@ function addStreamStatsToChunkStream(stats: StreamStats) {
   return new TransformStream({
     transform(chunk, controller) {
       stats.processedBytes += chunk.length;
-      stats.chunkIndex++;
       controller.enqueue(chunk);
     },
   });

@@ -55,6 +55,5 @@ export type JsonStreamChunk = {
   error: ParserErrorType | null;
   stats: {
     processedBytes: number;
-    chunkIndex: number;
   };
 };

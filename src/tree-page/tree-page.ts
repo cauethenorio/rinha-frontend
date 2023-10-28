@@ -13,17 +13,12 @@ export class TreePage {
     title: HTMLHeadingElement;
   } | null = null;
 
-  // els = {
-  //   page: this.getById('page'),
-  //   treeContainer: this.getById('tree-container'),
-  //   fileName: this.getById('filename'),
-  // };
-
   loadMore: null | ((v: unknown) => void) = null;
 
   loadJsonFile = (file: File) => {
     return new Promise<void>((resolve, reject) => {
       const self = this;
+      let chunkIndex = -1;
 
       file
         .stream()
@@ -39,7 +34,9 @@ export class TreePage {
         )
         .pipeTo(
           new WritableStream({
-            write({ lines, stats: { processedBytes, chunkIndex } }) {
+            write({ lines, stats: { processedBytes } }) {
+              chunkIndex++;
+
               return new Promise(loadNext => {
                 self.virtualList!.appendLines(lines, loadNext, processedBytes);
 
@@ -90,9 +87,12 @@ export class TreePage {
   }
 
   display() {
+    console.log('inside display');
     requestAnimationFrame(() => {
+      //console.log('display', this.els?.page, this.els?.page.classList);
       this.els!.page.classList.replace('opacity-0', 'opacity-100');
       this.els!.page.classList.remove('translate-x-10');
+      //console.log('display2', this.els?.page, this.els?.page.classList);
     });
   }
 
